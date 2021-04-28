@@ -1,0 +1,330 @@
+_SECTION_BEGIN("Hurst Exponent");
+
+// Enable basic chart framework.
+SetChartOptions(0, chartShowArrows | chartShowDates); 
+Plot(close,"Candle Close",colorOrange,styleCandle); 
+
+// Calculate Daily Return Series
+ret = log(Close / Ref(Close,-1));
+
+// First Group of 252 days.
+recent_252 = LastValue((EndValue(BarIndex()) - BeginValue(BarIndex()) - 252));
+div_one_zero_ret = 0; //Initiate variable for mean series of 252 days.
+div_one_zero_mc = 0; //Inititate variable for mean centered series of 252 days
+div_one_zero_mc_cum = 0; // initiate cumulative sum of mean centered series of 252 days
+
+// Loop through 252 days to create array of return series.
+for (i=recent_252; i<BarCount; i++)
+{
+	div_one_zero_ret[i] = ret[i];
+}
+
+//Calculate mean return
+Sum_bar_0 = 0;
+div_one_zero_mean = 0;
+for (i=recent_252+1; i<BarCount; i++)
+{	
+	// In order to calculate range for 252 bars in-between we need to calcualte them step by step.
+	Sum_bar_0[i] =  div_one_zero_ret[i] + Sum_bar_0[i-1];
+	if(i == BarCount-1)
+	{
+		div_one_zero_mean = Sum_bar_0[i] / 252;
+	}
+}
+
+// Loop through to create array of mean centered data.
+for (i=recent_252; i<BarCount; i++)
+{
+	div_one_zero_mc[i] = ret[i] - div_one_zero_mean;
+}
+
+// Loop through to create cumulative sum of mean centered data.
+for (i=recent_252+1; i < BarCount; i++)
+{
+	div_one_zero_mc_cum[i] = div_one_zero_mc_cum[i-1] + div_one_zero_mc[i];
+}
+
+//Calculate standard deviation.
+div_one_zero_mc_sqr_sum = 0;
+for (i=recent_252+1; i<BarCount; i++)
+{
+	If(i < BarCount)
+	{
+		div_one_zero_mc[i] = ret[i] - div_one_zero_mean;
+		div_one_zero_mc_sqr[i] = div_one_zero_mc[i] * div_one_zero_mc[i];
+		div_one_zero_mc_sqr_sum[i] = div_one_zero_mc_sqr[i] + div_one_zero_mc_sqr_sum[i-1];
+	}
+	if(i == BarCount-1)
+	{
+		div_one_zero_sd = sqrt(div_one_zero_mc_sqr_sum[i] / 252);
+	}
+}
+
+Max_dev_252 = HHV(div_one_zero_mc_cum,252); // Max of Cumulative Sum data.
+Min_dev_252 = LLV(div_one_zero_mc_cum,252); // Min of Cumulative Sum data.
+div_one_zero_rng = LastValue(Max_dev_252 - Min_dev_252,True); // Range value of Min and Max
+div_one_zero_rng_sd = LastValue((div_one_zero_rng / div_one_zero_sd),True); // Standard Deviation of range
+div_one_zero_ln_count = ln(252); // Log of 252 days
+div_one_zero_ln_rs = ln(div_one_zero_rng_sd); // Log of range
+div_one_zero_ln_rs_avg = div_one_zero_ln_rs / 1; // Avereage of Log range
+
+// Second Group of 126 days (2 datasets).
+recent_252 = LastValue((EndValue(BarIndex()) - BeginValue(BarIndex()) - 252));
+div_two_one_ret = 0; //Initiate first variable for mean series of 126 days.
+div_two_two_ret = 0; //Initiate second variable for mean series of 126 days.
+div_two_one_mc = 0; //Inititate first variable for mean centered series of 126 days
+div_two_two_mc = 0; //Inititate second variable for mean centered series of 126 days
+div_two_one_mc_cum = 0; // initiate first cumulative sum of mean centered series of 126 days
+div_two_two_mc_cum = 0; // initiate second cumulative sum of mean centered series of 126 days
+
+// Loop through 252 days to create two array of return series of 126 data points.
+fst_126 = recent_252 + 126;
+for (i=recent_252+1; i<BarCount; i++)
+{
+	If(i <= fst_126)
+	{
+		div_two_one_ret[i] = ret[i];
+	}
+	If(i > fst_126)
+	{
+		div_two_two_ret[i] = ret[i];
+	}
+}
+Sum_bar = 0;
+div_two_one_mean = 0;
+for (i=recent_252+1; i<fst_126; i++)
+{	
+	// In order to calculate range for 126 bars in-between we need to calcualte them step by step.
+	Sum_bar[i] =  div_two_one_ret[i] + Sum_bar[i-1];
+	if(i == fst_126-1)
+	{
+		div_two_one_mean = Sum_bar[i] / 126;
+	}
+}
+
+div_two_two_mean = LastValue(Sum(div_two_two_ret,126) / 126,True); // mean value of return series.
+div_two_two_sd = LastValue(StDev(div_two_two_ret,126),True); // standard deviation of return series.
+
+// Loop through to create array of mean centered data.
+div_two_one_mc_sqr_sum = 0;
+for (i=recent_252+1; i<BarCount; i++)
+{
+	If(i <= fst_126)
+	{
+		div_two_one_mc[i] = ret[i] - div_two_one_mean;
+		div_two_one_mc_sqr[i] = div_two_one_mc[i] * div_two_one_mc[i];
+		div_two_one_mc_sqr_sum[i] = div_two_one_mc_sqr[i] + div_two_one_mc_sqr_sum[i-1];
+	}
+	if(i == fst_126)
+	{
+		div_two_one_sd = sqrt(div_two_one_mc_sqr_sum[i] / 126);
+	}
+	If(i > fst_126)
+	{
+		div_two_two_mc[i] = ret[i] - div_two_two_mean;
+	}	
+}
+
+// Loop through to create cumulative sum of mean centered data.
+for (i=recent_252+1; i < BarCount; i++)
+{
+	If(i <= fst_126)
+	{
+		div_two_one_mc_cum[i] = div_two_one_mc_cum[i-1] + div_two_one_mc[i];
+	}
+	If(i > fst_126)
+	{
+		div_two_two_mc_cum[i] = div_two_two_mc_cum[i-1] + div_two_two_mc[i];
+	}
+}
+
+Max_dev_126_1 = HHV(div_two_one_mc_cum,fst_126); // Max of Cumulative Sum data.
+Max_dev_126_2 = HHV(div_two_two_mc_cum,126); // Max of Cumulative Sum data.
+Min_dev_126_1 = LLV(div_two_one_mc_cum,fst_126); // Min of Cumulative Sum data.
+Min_dev_126_2 = LLV(div_two_two_mc_cum,126); // Min of Cumulative Sum data.
+div_two_one_rng = LastValue(Max_dev_126_1 - Min_dev_126_1,True); // Range value of Min and Max
+div_two_two_rng = LastValue(Max_dev_126_2 - Min_dev_126_2,True); // Range value of Min and Max
+div_two_one_rng_sd = LastValue((div_two_one_rng / div_two_one_sd),True); // Standard Deviation of range
+div_two_two_rng_sd = LastValue((div_two_two_rng / div_two_two_sd),True); // Standard Deviation of range
+div_two_rng_sd_avg = (div_two_one_rng_sd + div_two_two_rng_sd) / 2; // Average to two ranges.
+div_two_ln_count = ln(126); // Log of 126 days
+div_two_ln_rs = ln(div_two_rng_sd_avg); // Log of range
+
+// Second Group of 63 days (4 datasets).
+recent_252 = LastValue((EndValue(BarIndex()) - BeginValue(BarIndex()) - 252));
+div_four_one_ret = 0; //Initiate first variable for mean series of 63 days.
+div_four_two_ret = 0; //Initiate first variable for mean series of 63 days.
+div_four_three_ret = 0; //Initiate first variable for mean series of 63 days.
+div_four_four_ret = 0; //Initiate first variable for mean series of 63 days.
+div_four_one_mc = 0; //Inititate first variable for mean centered series of 63 days
+div_four_two_mc = 0; //Inititate first variable for mean centered series of 63 days
+div_four_three_mc = 0; //Inititate first variable for mean centered series of 63 days
+div_four_four_mc = 0; //Inititate first variable for mean centered series of 63 days
+div_four_one_mc_cum = 0; // initiate first cumulative sum of mean centered series of 63 days
+div_four_two_mc_cum = 0; // initiate first cumulative sum of mean centered series of 63 days
+div_four_three_mc_cum = 0; // initiate first cumulative sum of mean centered series of 63 days
+div_four_four_mc_cum = 0; // initiate first cumulative sum of mean centered series of 63 days
+
+// Loop through 252 days to create four array of return series of 63 data points.
+fst_63 = recent_252 + 63;
+scd_63 = fst_63 + 63;
+trd_63 = scd_63 + 63;
+
+for (i=recent_252+1; i<BarCount; i++)
+{
+	If(i <= fst_63)
+	{
+		div_four_one_ret[i] = ret[i];
+	}
+	If(i > fst_63 AND i <= scd_63)
+	{
+		div_four_two_ret[i] = ret[i];
+	}
+	If(i > scd_63 AND i <= trd_63)
+	{
+		div_four_three_ret[i] = ret[i];
+	}
+	If(i > trd_63)
+	{
+		div_four_four_ret[i] = ret[i];
+	}
+}
+
+Sum_bar_1 = 0;
+Sum_bar_2 = 0;
+Sum_bar_3 = 0;
+div_four_one_mean = 0;
+div_four_two_mean = 0;
+div_four_three_mean = 0;
+
+for (i=recent_252+1; i <= trd_63; i++)
+{	
+	// In order to calculate range for 63 bars in-between we need to calcualte them step by step.
+	Sum_bar_1[i] =  div_four_one_ret[i] + Sum_bar_1[i-1];
+	if(i == fst_63)
+	{
+		div_four_one_mean = Sum_bar_1[i] / 63;
+	}
+	// In order to calculate range for 63 bars in-between we need to calcualte them step by step.
+	Sum_bar_2[i] =  div_four_two_ret[i] + Sum_bar_2[i-1];
+	if(i == scd_63)
+	{
+		div_four_two_mean = Sum_bar_2[i] / 63;
+	}
+	// In order to calculate range for 63 bars in-between we need to calcualte them step by step.
+	Sum_bar_3[i] =  div_four_three_ret[i] + Sum_bar_3[i-1];
+	if(i == trd_63)
+	{
+		div_four_three_mean = Sum_bar_3[i] / 63;
+	}
+}
+
+div_four_four_mean = LastValue(Sum(div_four_four_ret,63) / 63,True); // mean value of return series.
+div_four_four_sd = LastValue(StDev(div_four_four_ret,63),True); // standard deviation of return series.
+
+// Loop through to create array of mean centered data.
+div_four_one_mc_sqr_sum = 0;
+div_four_two_mc_sqr_sum = 0;
+div_four_three_mc_sqr_sum = 0;
+for (i=recent_252+1; i<BarCount; i++)
+{
+	If(i <= fst_63)
+	{
+		div_four_one_mc[i] = ret[i] - div_four_one_mean;
+		div_four_one_mc_sqr[i] = div_four_one_mc[i] * div_four_one_mc[i];
+		div_four_one_mc_sqr_sum[i] = div_four_one_mc_sqr[i] + div_four_one_mc_sqr_sum[i-1];
+	}
+	if(i == fst_63)
+	{
+		div_four_one_sd = sqrt(div_four_one_mc_sqr_sum[i] / 63);
+	}
+	If(i > fst_63 AND i <= scd_63)
+	{
+		div_four_two_mc[i] = ret[i] - div_four_two_mean;
+		div_four_two_mc_sqr[i] = div_four_two_mc[i] * div_four_two_mc[i];
+		div_four_two_mc_sqr_sum[i] = div_four_two_mc_sqr[i] + div_four_two_mc_sqr_sum[i-1];
+	}
+	if(i == scd_63)
+	{
+		div_four_two_sd = sqrt(div_four_two_mc_sqr_sum[i] / 63);
+	}
+	If(i > scd_63 AND i <= trd_63)
+	{
+		div_four_three_mc[i] = ret[i] - div_four_three_mean;
+		div_four_three_mc_sqr[i] = div_four_three_mc[i] * div_four_three_mc[i];
+		div_four_three_mc_sqr_sum[i] = div_four_three_mc_sqr[i] + div_four_three_mc_sqr_sum[i-1];
+	}
+	if(i == trd_63)
+	{
+		div_four_three_sd = sqrt(div_four_three_mc_sqr_sum[i] / 63);
+	}
+	if(i > trd_63)
+	{
+		div_four_four_mc[i] = ret[i] - div_four_four_mean;
+	}	
+}
+
+// Loop through to create cumulative sum of mean centered data.
+for (i=recent_252+1; i < BarCount; i++)
+{
+	If(i <= fst_63)
+	{
+		div_four_one_mc_cum[i] = div_four_one_mc_cum[i-1] + div_four_one_mc[i];
+	}
+	If(i > fst_63 AND i <= scd_63)
+	{
+		div_four_two_mc_cum[i] = div_four_two_mc_cum[i-1] + div_four_two_mc[i];
+	}
+	If(i > scd_63 AND i <= trd_63)
+	{
+		div_four_three_mc_cum[i] = div_four_three_mc_cum[i-1] + div_four_three_mc[i];
+	}
+	if(i > trd_63)
+	{
+		div_four_four_mc_cum[i] = div_four_four_mc_cum[i-1] + div_four_four_mc[i];
+	}
+}
+
+Max_dev_63_1 = HHV(div_four_one_mc_cum,fst_63); // Max of Cumulative Sum data.
+Max_dev_63_2 = HHV(div_four_two_mc_cum,scd_63); // Max of Cumulative Sum data.
+Max_dev_63_3 = HHV(div_four_three_mc_cum,trd_63); // Max of Cumulative Sum data.
+Max_dev_63_4 = HHV(div_four_four_mc_cum,63); // Max of Cumulative Sum data.
+Min_dev_63_1 = LLV(div_four_one_mc_cum,fst_63); // Min of Cumulative Sum data.
+Min_dev_63_2 = LLV(div_four_two_mc_cum,scd_63); // Min of Cumulative Sum data.
+Min_dev_63_3 = LLV(div_four_three_mc_cum,trd_63); // Min of Cumulative Sum data.
+Min_dev_63_4 = LLV(div_four_four_mc_cum,63); // Min of Cumulative Sum data.
+div_four_one_rng = LastValue(Max_dev_63_1 - Min_dev_63_1,True); // Range value of Min and Max
+div_four_two_rng = LastValue(Max_dev_63_2 - Min_dev_63_2,True); // Range value of Min and Max
+div_four_three_rng = LastValue(Max_dev_63_3 - Min_dev_63_3,True); // Range value of Min and Max
+div_four_four_rng = LastValue(Max_dev_63_4 - Min_dev_63_4,True); // Range value of Min and Max
+div_four_one_rng_sd = LastValue((div_four_one_rng / div_four_one_sd),True); // Standard Deviation of range
+div_four_two_rng_sd = LastValue((div_four_two_rng / div_four_two_sd),True); // Standard Deviation of range
+div_four_three_rng_sd = LastValue((div_four_three_rng / div_four_three_sd),True); // Standard Deviation of range
+div_four_four_rng_sd = LastValue((div_four_four_rng / div_four_four_sd),True); // Standard Deviation of range
+div_four_rng_sd_avg = (div_four_one_rng_sd + div_four_two_rng_sd + div_four_three_rng_sd + div_four_four_rng_sd) / 4; // Average to two ranges.
+div_four_ln_count = ln(63); // Log of 126 days
+div_four_ln_rs = ln(div_four_rng_sd_avg); // Log of range
+
+// Final Hurst Value
+slope1 = (div_two_ln_rs - div_one_zero_ln_rs) / (div_two_ln_count - div_one_zero_ln_count); // Slope of (x2-x1) / (y2-y1)
+slope2 = (div_four_ln_rs - div_two_ln_rs) / (div_four_ln_count - div_two_ln_count); // Slope of (x3-x2) / (y3-y2)
+hurst_value = (slope1 + slope2) / 2;
+
+//Plot Return Series
+Plot(ret,"Return Series",colorBlue, styleLine | styleThick | styleOwnScale); 
+
+// Filter Data to check values
+Filter  = 1;
+//AddColumn(Close,"Close",1.2);
+//AddColumn(ret, "Daily return",1.2);
+//AddColumn(div_one_zero_ln_count,"Mean Centre Cum",1.5);
+//AddColumn(div_one_zero_ln_rs,"Max",1.5);
+//AddColumn(div_two_ln_count,"Min",1.5);
+//AddColumn(div_two_ln_rs,"Min",1.5);
+//AddColumn(div_four_ln_count,"Min",1.5);
+//AddColumn(div_four_ln_rs,"1",1.5);
+//AddColumn(slope1, "1",1.5);
+//AddColumn(slope2, "2",1.5);
+AddColumn(hurst_value,"Hurst Value",1.5);
+
+_SECTION_END();
